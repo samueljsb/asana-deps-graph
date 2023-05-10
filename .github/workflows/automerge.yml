@@ -1,0 +1,17 @@
+name: pre-commit-ci auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+
+jobs:
+  automerge-pre-commit-ci:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'pre-commit-ci[bot]' }}
+    steps:
+    - name: enable auto-merge
+      env:
+        PR_URL: ${{github.event.pull_request.html_url}}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh pr merge --auto --merge "$PR_URL"
