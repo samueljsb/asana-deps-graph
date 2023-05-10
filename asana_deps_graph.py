@@ -8,6 +8,9 @@ import urllib.request
 from collections.abc import Iterator
 from typing import NamedTuple
 
+MILESTONE_COLOR = 'darkgreen'
+COMPLETED_COLOR = 'gray'
+
 
 class Task(NamedTuple):
     id: str
@@ -51,39 +54,52 @@ def get_tasks(project_id: str, pat: str) -> Iterator[Task]:
         )
 
 
-def _render_node(task: Task) -> str:
+def _render_node(task: Task, all_tasks: dict[str, Task]) -> str:
+    attrs: dict[str, str] = {}
+
+    is_blocked = not all(
+        all_tasks[blocker].is_completed for blocker in task.blocked_by
+    )
+
     name = task.name.replace('"', "'")
-    attrs = {'label': f'"{name}"'}
+    if task.is_completed:
+        if task.is_milestone:
+            attrs |= {'label': f'<<S>{name}</S>>'}
+        else:
+            attrs |= {'label': f'<<S>{name}</S>>'}
+    elif not is_blocked:
+        attrs |= {'label': f'<<B>{name}</B>>'}
+    else:
+        attrs |= {'label': f'"{name}"'}
 
     if task.is_milestone:
-        attrs |= {
-            'color': 'darkgreen',
-            'fontcolor': 'darkgreen',
-            'shape': 'hexagon',
-        }
-    else:
-        attrs |= {
-            'shape': 'box',
-        }
+        attrs |= {'color': MILESTONE_COLOR, 'fontcolor': MILESTONE_COLOR}
+    elif task.is_completed:
+        attrs |= {'color': COMPLETED_COLOR, 'fontcolor': COMPLETED_COLOR}
 
-    if task.is_completed:
-        attrs |= {
-            'color': 'gray',
-            'fontcolor': 'gray',
-        }
+    if task.is_milestone:
+        attrs |= {'shape': 'hexagon'}
+    else:
+        attrs |= {'shape': 'box'}
 
     attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
     return f'{task.id} [{attributes}];'
 
 
 def _render_edge(start: Task, end: Task) -> str:
-    return f'{start.id} -> {end.id};'
+    attrs: dict[str, str] = {}
+
+    if start.is_completed:
+        attrs |= {'color': COMPLETED_COLOR}
+
+    attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
+    return f'{start.id} -> {end.id} [{attributes}];'
 
 
 def build_graph_lines(tasks: dict[str, Task]) -> Iterator[str]:
     yield 'digraph{'
     for task in tasks.values():
-        yield _render_node(task)
+        yield _render_node(task, tasks)
     for task in tasks.values():
         for dependency_id in task.blocked_by:
             yield _render_edge(tasks[dependency_id], task)
