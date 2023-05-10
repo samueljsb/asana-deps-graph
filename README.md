@@ -58,3 +58,7 @@ To generate an image from the output DOT pipe it to the `dot` program:
 ```shell
 asana-deps-graph 1234567890987654 | dot -Tpng -o my_project.png
 ```
+
+### Example
+
+![an example project graph](example.png)

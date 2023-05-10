@@ -3,3 +3,4 @@
 venv/*
 
 *.png
+!example.png
