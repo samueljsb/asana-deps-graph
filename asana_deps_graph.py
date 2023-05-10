@@ -5,7 +5,6 @@ import json
 import os
 import urllib.parse
 import urllib.request
-from collections.abc import Iterable
 from collections.abc import Iterator
 from typing import NamedTuple
 
@@ -52,7 +51,7 @@ def get_tasks(project_id: str, pat: str) -> Iterator[Task]:
         )
 
 
-def _build_task_lines(task: Task) -> Iterator[str]:
+def _render_node(task: Task) -> str:
     name = task.name.replace('"', "'")
     attrs = {'label': f'"{name}"'}
 
@@ -74,16 +73,20 @@ def _build_task_lines(task: Task) -> Iterator[str]:
         }
 
     attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
-    yield f'{task.id} [{attributes}];'
-
-    for dep in task.blocked_by:
-        yield f'{dep} -> {task.id};'
+    return f'{task.id} [{attributes}];'
 
 
-def build_graph_lines(tasks: Iterable[Task]) -> Iterator[str]:
+def _render_edge(start: Task, end: Task) -> str:
+    return f'{start.id} -> {end.id};'
+
+
+def build_graph_lines(tasks: dict[str, Task]) -> Iterator[str]:
     yield 'digraph{'
-    for task in tasks:
-        yield from _build_task_lines(task)
+    for task in tasks.values():
+        yield _render_node(task)
+    for task in tasks.values():
+        for dependency_id in task.blocked_by:
+            yield _render_edge(tasks[dependency_id], task)
     yield '}'
 
 
@@ -96,7 +99,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    tasks = get_tasks(args.project_id, args.pat)
+    tasks = {task.id: task for task in get_tasks(args.project_id, args.pat)}
     graph_lines = build_graph_lines(tasks)
 
     print(*graph_lines)
