@@ -55,7 +55,7 @@ def get_tasks(project_id: str, pat: str) -> Iterator[Task]:
 
 
 def _render_node(task: Task, all_tasks: dict[str, Task]) -> str:
-    attrs: dict[str, str] = {}
+    attrs: dict[str, str] = {'style': 'rounded'}
 
     is_blocked = not all(
         all_tasks[blocker].is_completed for blocker in task.blocked_by
