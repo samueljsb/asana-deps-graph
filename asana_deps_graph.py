@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import urllib.parse
 import urllib.request
 from collections.abc import Iterator
 from typing import NamedTuple
+
+import keyring
 
 MILESTONE_COLOR = 'darkgreen'
 COMPLETED_COLOR = 'gray'
@@ -109,13 +110,11 @@ def build_graph_lines(tasks: dict[str, Task]) -> Iterator[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('project_id', help='project PID')
-    parser.add_argument(
-        '-t', '--pat', default=os.getenv('ASANA_PAT', ''),
-        help='personal access token (default: $ASANA_PAT)',
-    )
     args = parser.parse_args()
 
-    tasks = {task.id: task for task in get_tasks(args.project_id, args.pat)}
+    pat = keyring.get_password('asana-deps', 'pat')
+
+    tasks = {task.id: task for task in get_tasks(args.project_id, pat)}
     graph_lines = build_graph_lines(tasks)
 
     print(*graph_lines)

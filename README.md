@@ -36,22 +36,24 @@ simple as pulling the latest version of the main branch.
 
 ### Usage
 
+Set your Asana PAT with:
+
+```shell
+python -mkeyring set asana-deps pat
+```
+
 ```console
 $ asana-deps-graph --help
-usage: asana-deps-graph [-h] [-t PAT] project_id
+usage: asana-deps-graph [-h] project_id
 
 positional arguments:
   project_id         project PID
 
 options:
   -h, --help         show this help message and exit
-  -t PAT, --pat PAT  personal access token (default: $ASANA_PAT)
 ```
 
 The project PID can be found in the URL for the project board.
-
-You can set your Asana PAT as an environment variable (`ASANA_PAT`) to avoid
-needing to enter it in the command line every time.
 
 To generate an image from the output DOT pipe it to the `dot` program:
 
