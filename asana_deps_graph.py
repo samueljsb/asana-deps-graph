@@ -74,7 +74,15 @@ def _render_node(task: Task, all_tasks: dict[str, Task]) -> str:
         attrs |= {'label': f'"{name}"'}
 
     if task.is_milestone:
-        attrs |= {'color': MILESTONE_COLOR, 'fontcolor': MILESTONE_COLOR}
+        attrs |= {'color': MILESTONE_COLOR}
+        if task.is_completed:
+            attrs |= {
+                'style': 'filled', 'fillcolor': MILESTONE_COLOR,
+                'fontcolor': COMPLETED_COLOR,
+            }
+        else:
+            attrs |= {'fontcolor': MILESTONE_COLOR}
+
     elif task.is_completed:
         attrs |= {'color': COMPLETED_COLOR, 'fontcolor': COMPLETED_COLOR}
 
