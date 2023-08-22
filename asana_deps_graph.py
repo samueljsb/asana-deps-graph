@@ -9,9 +9,6 @@ from typing import NamedTuple
 
 import keyring
 
-MILESTONE_COLOR = 'darkgreen'
-COMPLETED_COLOR = 'gray'
-
 
 class Task(NamedTuple):
     id: str
@@ -55,64 +52,70 @@ def get_tasks(project_id: str, pat: str) -> Iterator[Task]:
         )
 
 
-def _render_node(task: Task, all_tasks: dict[str, Task]) -> str:
-    attrs: dict[str, str] = {'style': 'rounded'}
+class Graphviz:
+    MILESTONE_COLOR = 'darkgreen'
+    COMPLETED_COLOR = 'gray'
 
-    is_blocked = not all(
-        all_tasks[blocker].is_completed for blocker in task.blocked_by
-    )
+    def build_graph_lines(self, tasks: dict[str, Task]) -> Iterator[str]:
+        yield 'digraph{'
+        for task in tasks.values():
+            yield self._render_node(task, tasks)
+        for task in tasks.values():
+            for dependency_id in task.blocked_by:
+                yield self._render_edge(tasks[dependency_id], task)
+        yield '}'
 
-    name = task.name.replace('"', "'")
-    if task.is_completed:
-        if task.is_milestone:
-            attrs |= {'label': f'<<S>{name}</S>>'}
-        else:
-            attrs |= {'label': f'<<S>{name}</S>>'}
-    elif not is_blocked:
-        attrs |= {'label': f'<<B>{name}</B>>'}
-    else:
-        attrs |= {'label': f'"{name}"'}
+    def _render_node(self, task: Task, all_tasks: dict[str, Task]) -> str:
+        attrs: dict[str, str] = {'style': 'rounded'}
 
-    if task.is_milestone:
-        attrs |= {'color': MILESTONE_COLOR}
+        is_blocked = not all(
+            all_tasks[blocker].is_completed for blocker in task.blocked_by
+        )
+
+        name = task.name.replace('"', "'")
         if task.is_completed:
-            attrs |= {
-                'style': 'filled', 'fillcolor': MILESTONE_COLOR,
-                'fontcolor': COMPLETED_COLOR,
-            }
+            if task.is_milestone:
+                attrs |= {'label': f'<<S>{name}</S>>'}
+            else:
+                attrs |= {'label': f'<<S>{name}</S>>'}
+        elif not is_blocked:
+            attrs |= {'label': f'<<B>{name}</B>>'}
         else:
-            attrs |= {'fontcolor': MILESTONE_COLOR}
+            attrs |= {'label': f'"{name}"'}
 
-    elif task.is_completed:
-        attrs |= {'color': COMPLETED_COLOR, 'fontcolor': COMPLETED_COLOR}
+        if task.is_milestone:
+            attrs |= {'color': self.MILESTONE_COLOR}
+            if task.is_completed:
+                attrs |= {
+                    'style': 'filled',
+                    'fillcolor': self.MILESTONE_COLOR,
+                    'fontcolor': self.COMPLETED_COLOR,
+                }
+            else:
+                attrs |= {'fontcolor': self.MILESTONE_COLOR}
 
-    if task.is_milestone:
-        attrs |= {'shape': 'hexagon'}
-    else:
-        attrs |= {'shape': 'box'}
+        elif task.is_completed:
+            attrs |= {
+                'color': self.COMPLETED_COLOR,
+                'fontcolor': self.COMPLETED_COLOR,
+            }
 
-    attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
-    return f'{task.id} [{attributes}];'
+        if task.is_milestone:
+            attrs |= {'shape': 'hexagon'}
+        else:
+            attrs |= {'shape': 'box'}
 
+        attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
+        return f'{task.id} [{attributes}];'
 
-def _render_edge(start: Task, end: Task) -> str:
-    attrs: dict[str, str] = {}
+    def _render_edge(self, start: Task, end: Task) -> str:
+        attrs: dict[str, str] = {}
 
-    if start.is_completed:
-        attrs |= {'color': COMPLETED_COLOR}
+        if start.is_completed:
+            attrs |= {'color': self.COMPLETED_COLOR}
 
-    attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
-    return f'{start.id} -> {end.id} [{attributes}];'
-
-
-def build_graph_lines(tasks: dict[str, Task]) -> Iterator[str]:
-    yield 'digraph{'
-    for task in tasks.values():
-        yield _render_node(task, tasks)
-    for task in tasks.values():
-        for dependency_id in task.blocked_by:
-            yield _render_edge(tasks[dependency_id], task)
-    yield '}'
+        attributes = ', '.join(f'{k}={v}' for k, v in attrs.items())
+        return f'{start.id} -> {end.id} [{attributes}];'
 
 
 def main() -> int:
@@ -123,7 +126,7 @@ def main() -> int:
     pat = keyring.get_password('asana-deps', 'pat')
 
     tasks = {task.id: task for task in get_tasks(args.project_id, pat)}
-    graph_lines = build_graph_lines(tasks)
+    graph_lines = Graphviz().build_graph_lines(tasks)
 
     print(*graph_lines)
 
