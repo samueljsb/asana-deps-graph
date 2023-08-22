@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import argparse
 import json
 import urllib.parse
@@ -52,7 +53,13 @@ def get_tasks(project_id: str, pat: str) -> Iterator[Task]:
         )
 
 
-class Graphviz:
+class Renderer(abc.ABC):
+    @abc.abstractmethod
+    def build_graph_lines(self, tasks: dict[str, Task]) -> Iterator[str]:
+        ...
+
+
+class Graphviz(Renderer):
     MILESTONE_COLOR = 'darkgreen'
     COMPLETED_COLOR = 'gray'
 
@@ -118,17 +125,91 @@ class Graphviz:
         return f'{start.id} -> {end.id} [{attributes}];'
 
 
+class Mermaid(Renderer):
+    MILESTONE_STROKE = 'darkgreen'
+    MILESTONE_FILL = 'darkseagreen'
+    COMPLETED_COLOR = 'lightgray'
+
+    def build_graph_lines(self, tasks: dict[str, Task]) -> Iterator[str]:
+        yield 'flowchart TB'
+        for task in tasks.values():
+            yield from self._render_node(task, tasks)
+        for task in tasks.values():
+            for dependency_id in task.blocked_by:
+                yield self._render_edge(tasks[dependency_id], task)
+
+    def _render_node(
+            self, task: Task, all_tasks: dict[str, Task],
+    ) -> Iterator[str]:
+        style: dict[str, str] = {}
+
+        is_blocked = not all(
+            all_tasks[blocker].is_completed for blocker in task.blocked_by
+        )
+
+        name = task.name.replace('"', "'")
+        if task.is_completed:
+            label = f'fa:fa-check {name}'
+            style |= {'stroke': self.COMPLETED_COLOR}
+        elif not is_blocked:
+            label = f'**{name}**'
+            style |= {'stroke-width': '2px'}
+        else:
+            label = f'far:fa-hourglass {name}'
+
+        if task.is_milestone:
+            style |= {'stroke': self.MILESTONE_STROKE}
+            if task.is_completed:
+                style |= {'fill': 'none'}
+            else:
+                style |= {'fill': self.MILESTONE_FILL, 'stroke-width': '4px'}
+
+        elif task.is_completed:
+            style |= {'stroke': 'none', 'fill': 'none'}
+
+        if task.is_milestone:
+            open, close = '{{', '}}'
+        else:
+            open, close = '([', '])'
+
+        yield f'{task.id}{open}"`{label}`"{close}'
+
+        if style:
+            style_str = ','.join(f'{key}:{val}' for key, val in style.items())
+            yield f'style {task.id} {style_str};'
+
+    def _render_edge(self, start: Task, end: Task) -> str:
+        if start.is_completed:
+            arrow = '-.->'
+        else:
+            arrow = '-->'
+
+        return f'{start.id} {arrow} {end.id}'
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('project_id', help='project PID')
+
+    renderer_mutex = parser.add_mutually_exclusive_group()
+    renderer_mutex.set_defaults(renderer=Graphviz)
+    renderer_mutex.add_argument(
+        '-g', '--graphviz',
+        action='store_const', dest='renderer', const=Graphviz,
+    )
+    renderer_mutex.add_argument(
+        '-m', '--mermaid',
+        action='store_const', dest='renderer', const=Mermaid,
+    )
+
     args = parser.parse_args()
 
     pat = keyring.get_password('asana-deps', 'pat')
 
     tasks = {task.id: task for task in get_tasks(args.project_id, pat)}
-    graph_lines = Graphviz().build_graph_lines(tasks)
+    graph_lines = args.renderer().build_graph_lines(tasks)
 
-    print(*graph_lines)
+    print(*graph_lines, sep='\n')
 
     return 0
 

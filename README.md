@@ -44,16 +44,20 @@ python -mkeyring set asana-deps pat
 
 ```console
 $ asana-deps-graph --help
-usage: asana-deps-graph [-h] project_id
+usage: asana-deps-graph [-h] [-g | -m] project_id
 
 positional arguments:
-  project_id         project PID
+  project_id      project PID
 
 options:
-  -h, --help         show this help message and exit
+  -h, --help      show this help message and exit
+  -g, --graphviz
+  -m, --mermaid
 ```
 
 The project PID can be found in the URL for the project board.
+
+#### Graphviz
 
 To generate an image from the output DOT pipe it to the `dot` program:
 
@@ -61,6 +65,14 @@ To generate an image from the output DOT pipe it to the `dot` program:
 asana-deps-graph 1234567890987654 | dot -Tpng -o my_project.png
 ```
 
-### Example
+![an example project graph rendered with Graphviz](example.png)
 
-![an example project graph](example.png)
+#### Mermaid
+
+To generate an image using Mermaid, pipe it to the Mermaid CLI:
+
+```shell
+asana-deps-graph 1234567890987654 | mmdc -tneutral -i - -o my_project.png
+```
+
+![an example project graph rendered with Mermaid](example_mermaid.png)

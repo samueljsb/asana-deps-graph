@@ -4,3 +4,4 @@ venv/*
 
 *.png
 !example.png
+!example_mermaid.png
