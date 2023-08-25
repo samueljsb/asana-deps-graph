@@ -160,9 +160,9 @@ class Mermaid(Renderer):
         if task.is_milestone:
             style |= {'stroke': self.MILESTONE_STROKE}
             if task.is_completed:
-                style |= {'fill': 'none'}
+                style |= {'fill': self.MILESTONE_FILL}
             else:
-                style |= {'fill': self.MILESTONE_FILL, 'stroke-width': '4px'}
+                style |= {'stroke-width': '4px'}
 
         elif task.is_completed:
             style |= {'stroke': 'none', 'fill': 'none'}
